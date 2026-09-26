@@ -12,6 +12,14 @@ typedef enum {
     SYSTEM_ERROR     // 错误状态
 } SystemState_t;
 
+/* 记录进入SYSTEM_ERROR的首要软件故障原因。 */
+typedef enum {
+    SYSTEM_FAULT_NONE,
+    SYSTEM_FAULT_TEMPERATURE,
+    SYSTEM_FAULT_PRESSURE,
+    SYSTEM_FAULT_LIQUID_LEVEL
+} SystemFault_t;
+
 // 系统配置结构体
 typedef struct {
     uint8_t targetTemp;        // 目标温度（℃）
@@ -28,5 +36,7 @@ void Control_SetTargetTemp(uint8_t temp);
 uint8_t Control_GetTargetTemp(void);
 uint8_t Control_GetCurrentTemp(void);
 SystemState_t Control_GetSystemState(void);
+/* 查询当前故障；离开错误状态后恢复为SYSTEM_FAULT_NONE。 */
+SystemFault_t Control_GetSystemFault(void);
 
 #endif

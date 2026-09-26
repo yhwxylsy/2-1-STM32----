@@ -334,7 +334,8 @@
             <v6WtE>0</v6WtE>
             <v6Rtti>0</v6Rtti>
             <VariousControls>
-              <MiscControls></MiscControls>
+              <!-- Source uses C99 syntax; align the ArmClang language mode. -->
+              <MiscControls>-std=c99</MiscControls>
               <Define>USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
               <IncludePath>.\Start;.\User;.\Library;.\Hardware</IncludePath>

@@ -1,11 +1,11 @@
 #include "Serial.h"
-#include "math.h"
 
 /* ISR单生产者、主循环单消费者；volatile保证共享索引每次都从内存读取。 */
 static volatile uint8_t g_rxBuffer[SERIAL_RX_BUFFER_SIZE];
 static volatile uint8_t g_rxHead = 0;
 static volatile uint8_t g_rxTail = 0;
 static volatile uint32_t g_rxOverflowCount = 0;
+/* 主循环写入发送队列，USART1 TXE中断负责消费。 */
 static volatile uint8_t g_txBuffer[SERIAL_TX_BUFFER_SIZE];
 static volatile uint8_t g_txHead = 0;
 static volatile uint8_t g_txTail = 0;
@@ -17,34 +17,34 @@ static volatile uint32_t g_txOverflowCount = 0;
   * @retval 无
   */
 void Serial_Init(void) {
-    // 1. 使能时钟
+    /* 1. 使能时钟 */
     RCC_APB2PeriphClockCmd(SERIAL_USART_RCC | SERIAL_GPIO_RCC, ENABLE);
     
-    // 2. 配置GPIO
+    /* 2. 配置GPIO */
     GPIO_InitTypeDef GPIO_InitStructure;
     
-    // 配置发送引脚 (PA9) 为复用推挽输出
+    /* 配置发送引脚 (PA9) 为复用推挽输出 */
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
     GPIO_InitStructure.GPIO_Pin = SERIAL_TX_PIN;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(SERIAL_TX_PORT, &GPIO_InitStructure);
     
-    // 配置接收引脚 (PA10) 为浮空输入
+    /* 配置接收引脚 (PA10) 为浮空输入 */
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
     GPIO_InitStructure.GPIO_Pin = SERIAL_RX_PIN;
     GPIO_Init(SERIAL_RX_PORT, &GPIO_InitStructure);
     
-    // 3. 配置USART
+    /* 3. 配置USART */
     USART_InitTypeDef USART_InitStructure;
     USART_InitStructure.USART_BaudRate = SERIAL_BAUDRATE;
     USART_InitStructure.USART_WordLength = USART_WordLength_8b;
     USART_InitStructure.USART_StopBits = USART_StopBits_1;
     USART_InitStructure.USART_Parity = USART_Parity_No;
     USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = USART_Mode_Tx | USART_Mode_Rx;  // 发送和接收模式
+    USART_InitStructure.USART_Mode = USART_Mode_Tx | USART_Mode_Rx;  /* 发送和接收模式 */
     USART_Init(SERIAL_USART, &USART_InitStructure);
     
-    // 4. 配置中断控制器
+    /* 4. 配置中断控制器 */
     NVIC_InitTypeDef NVIC_InitStructure;
     NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
@@ -52,11 +52,11 @@ void Serial_Init(void) {
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
     
-    // 5. 使能USART接收中断
+    /* 5. 使能USART接收中断 */
     USART_ITConfig(SERIAL_USART, USART_IT_TXE, DISABLE);
     USART_ITConfig(SERIAL_USART, USART_IT_RXNE, ENABLE);
     
-    // 6. 使能USART
+    /* 6. 使能USART */
     USART_Cmd(SERIAL_USART, ENABLE);
 }
 
@@ -99,10 +99,22 @@ void Serial_SendString(uint8_t* str) {
   * @retval 无
   */
 void Serial_SendNumber(uint32_t num, uint8_t len) {
-    uint8_t i;
-    for (i = 0; i < len; i++) {
-        // 从高位到低位依次发送
-        Serial_SendByte((num / (uint32_t)pow(10, len - i - 1)) % 10 + '0');
+  uint32_t divisor = 1U;
+  uint8_t i;
+
+  /* 只输出指定宽度的低位十进制数字，位权通过整数运算递减。 */
+  /* uint32_t最多10位，限制位宽以避免十进制除数溢出。 */
+  if (len > 10U) {
+    len = 10U;
+  }
+
+  for (i = 1U; i < len; i++) {
+    divisor *= 10U;
+  }
+
+  for (i = 0U; i < len; i++) {
+    Serial_SendByte((uint8_t)((num / divisor) % 10U) + '0');
+    divisor /= 10U;
     }
 }
 

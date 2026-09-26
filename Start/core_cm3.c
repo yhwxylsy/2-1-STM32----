@@ -485,9 +485,12 @@ uint32_t __get_MSP(void)
  * Assign the value mainStackPointer to the MSP 
  * (main stack pointer) Cortex processor register
  */
+/* Keep this helper naked: changing MSP invalidates the current C stack frame. */
+void __set_MSP(uint32_t topOfMainStack) __attribute__((naked));
 void __set_MSP(uint32_t topOfMainStack)
 {
-  __ASM volatile ("MSR msp, %0" : : "r" (topOfMainStack));
+  __ASM volatile ("MSR msp, r0\n\t"
+                  "BX lr");
 }
 
 /**

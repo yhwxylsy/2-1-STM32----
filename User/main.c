@@ -38,6 +38,67 @@ void Timer2_Init(void) {
     TIM_Cmd(TIM2, ENABLE);
 }
 
+/* 共用串口状态格式，避免周期上报与's'命令内容分叉。 */
+static void Serial_SendSystemStatus(void) {
+	uint8_t pressureDetected;
+
+	Serial_SendString((uint8_t*)"System Status:\r\n");
+	Serial_SendString((uint8_t*)"Current Temp: ");
+	Serial_SendNumber(Control_GetCurrentTemp(), 2);
+	Serial_SendString((uint8_t*)"C\r\nState: ");
+	switch (Control_GetSystemState()) {
+		case SYSTEM_OFF:
+			Serial_SendString((uint8_t*)"OFF\r\n");
+			break;
+		case SYSTEM_STANDBY:
+			Serial_SendString((uint8_t*)"STANDBY\r\n");
+			break;
+		case SYSTEM_HEATING:
+			Serial_SendString((uint8_t*)"HEATING\r\n");
+			break;
+		case SYSTEM_KEEPING:
+			Serial_SendString((uint8_t*)"KEEPING\r\n");
+			break;
+		case SYSTEM_ERROR:
+			Serial_SendString((uint8_t*)"ERROR\r\n");
+			break;
+		default:
+			Serial_SendString((uint8_t*)"UNKNOWN\r\n");
+			break;
+	}
+
+	Serial_SendString((uint8_t*)"Fault: ");
+	switch (Control_GetSystemFault()) {
+		case SYSTEM_FAULT_TEMPERATURE:
+			Serial_SendString((uint8_t*)"Temperature\r\n");
+			break;
+		case SYSTEM_FAULT_PRESSURE:
+			Serial_SendString((uint8_t*)"Pressure Sensor\r\n");
+			break;
+		case SYSTEM_FAULT_LIQUID_LEVEL:
+			Serial_SendString((uint8_t*)"Liquid Level\r\n");
+			break;
+		case SYSTEM_FAULT_NONE:
+		default:
+			Serial_SendString((uint8_t*)"None\r\n");
+			break;
+	}
+
+	Serial_SendString((uint8_t*)"Liquid Level: ");
+	Serial_SendString(Level_Detect() ? (uint8_t*)"Present\r\n" : (uint8_t*)"Absent\r\n");
+
+	Serial_SendString((uint8_t*)"Pressure: ");
+	if (!Pressure_Detect(&pressureDetected)) {
+		Serial_SendString((uint8_t*)"Sensor Error\r\n");
+	} else if (pressureDetected) {
+		Serial_SendString((uint8_t*)"Detected\r\n");
+	} else {
+		Serial_SendString((uint8_t*)"Not Detected\r\n");
+	}
+
+	Serial_SendString((uint8_t*)"--------------------\r\n");
+}
+
 int main(void)
 {
 	uint32_t lastControlTime = 0;
@@ -76,31 +137,7 @@ int main(void)
 		// 每秒发送一次状态
 		if (currentTime - lastStatusTime >= 1000U) {
 			lastStatusTime = currentTime;
-			// 通过串口发送传感器数据
-			Serial_SendString((uint8_t*)"System Status:\r\n");
-			Serial_SendString((uint8_t*)"Current Temp: ");
-			Serial_SendNumber(Control_GetCurrentTemp(), 2);
-			Serial_SendString((uint8_t*)"C\r\n");
-			
-			Serial_SendString((uint8_t*)"Liquid Level: ");
-			if (Level_Detect()) {
-				Serial_SendString((uint8_t*)"Present\r\n");
-			} else {
-				Serial_SendString((uint8_t*)"Absent\r\n");
-			}
-			
-			Serial_SendString((uint8_t*)"Pressure: ");
-			uint8_t pressureDetected;
-			if (!Pressure_Detect(&pressureDetected)) {
-				Serial_SendString((uint8_t*)"Sensor Error\r\n");
-			} else if (pressureDetected) {
-				Serial_SendString((uint8_t*)"Detected\r\n");
-			} else {
-				Serial_SendString((uint8_t*)"Not Detected\r\n");
-			}
-			
-			Serial_SendString((uint8_t*)"--------------------\r\n");
-			
+			Serial_SendSystemStatus();
 		}
 		
 		// 处理串口接收的数据
@@ -110,26 +147,7 @@ int main(void)
 			// 根据接收到的命令执行相应操作
 			switch (rxData) {
 				case 's':  // 发送系统状态
-					Serial_SendString((uint8_t*)"System Status:\r\n");
-					Serial_SendString((uint8_t*)"Current Temp: ");
-					Serial_SendNumber(Control_GetCurrentTemp(), 2);
-					Serial_SendString((uint8_t*)"C\r\n");
-					Serial_SendString((uint8_t*)"Liquid Level: ");
-					if (Level_Detect()) {
-						Serial_SendString((uint8_t*)"Present\r\n");
-					} else {
-						Serial_SendString((uint8_t*)"Absent\r\n");
-					}
-					Serial_SendString((uint8_t*)"Pressure: ");
-					uint8_t pressureDetected;
-					if (!Pressure_Detect(&pressureDetected)) {
-						Serial_SendString((uint8_t*)"Sensor Error\r\n");
-					} else if (pressureDetected) {
-						Serial_SendString((uint8_t*)"Detected\r\n");
-					} else {
-						Serial_SendString((uint8_t*)"Not Detected\r\n");
-					}
-					Serial_SendString((uint8_t*)"--------------------\r\n");
+					Serial_SendSystemStatus();
 					break;
 				case 'h':  // 发送帮助信息
 					Serial_SendString((uint8_t*)"Help:\r\n");

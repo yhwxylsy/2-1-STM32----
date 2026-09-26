@@ -8,6 +8,7 @@
 
 // 系统配置全局变量
 static SystemConfig_t g_systemConfig;
+static SystemFault_t g_systemFault;
 
 /**
   * @brief  主控模块初始化
@@ -21,6 +22,7 @@ void Control_Init(void) {
     g_systemConfig.pressureDetected = 0;
     g_systemConfig.liquidLevel = 0;
     g_systemConfig.systemState = SYSTEM_OFF;
+    g_systemFault = SYSTEM_FAULT_NONE;
 }
 
 /**
@@ -36,6 +38,7 @@ void Control_Update(void) {
     if (!TempHeat_GetCurrentTemp(&currentTemp)) {
         /* 温度数据无效时锁定错误状态并立即撤销加热。 */
         g_systemConfig.systemState = SYSTEM_ERROR;
+        g_systemFault = SYSTEM_FAULT_TEMPERATURE;
         TempHeat_SetPower(0);
         EL_Disable();
         Display_Update(g_systemConfig.targetTemp, g_systemConfig.currentTemp, g_systemConfig.systemState);
@@ -47,6 +50,7 @@ void Control_Update(void) {
         /* 压力传感器读取失败不能等同于正常的无压力读数。 */
         g_systemConfig.pressureDetected = 0;
         g_systemConfig.systemState = SYSTEM_ERROR;
+        g_systemFault = SYSTEM_FAULT_PRESSURE;
         TempHeat_SetPower(0);
         EL_Disable();
         Display_Update(g_systemConfig.targetTemp, g_systemConfig.currentTemp, g_systemConfig.systemState);
@@ -69,6 +73,7 @@ void Control_Update(void) {
             // 检查是否有液体
             if (!g_systemConfig.pressureDetected) {
                 g_systemConfig.systemState = SYSTEM_OFF;
+                g_systemFault = SYSTEM_FAULT_NONE;
                 EL_Disable();  // 禁用系统
             } else if (g_systemConfig.liquidLevel) {
                 g_systemConfig.systemState = SYSTEM_HEATING;
@@ -79,11 +84,15 @@ void Control_Update(void) {
             // 检查安全条件
             if (!g_systemConfig.pressureDetected) {
                 g_systemConfig.systemState = SYSTEM_OFF;
+                g_systemFault = SYSTEM_FAULT_NONE;
                 TempHeat_SetPower(0);
                 EL_Disable();
             } else if (!g_systemConfig.liquidLevel) {
                 g_systemConfig.systemState = SYSTEM_ERROR;
+                g_systemFault = SYSTEM_FAULT_LIQUID_LEVEL;
                 TempHeat_SetPower(0);
+                /* 同时撤销模块使能，避免故障后外围仍保持工作。 */
+                EL_Disable();
             } else {
                 // 温度控制
                 if (g_systemConfig.currentTemp < g_systemConfig.targetTemp) {
@@ -102,11 +111,15 @@ void Control_Update(void) {
             // 检查安全条件
             if (!g_systemConfig.pressureDetected) {
                 g_systemConfig.systemState = SYSTEM_OFF;
+                g_systemFault = SYSTEM_FAULT_NONE;
                 TempHeat_SetPower(0);
                 EL_Disable();
             } else if (!g_systemConfig.liquidLevel) {
                 g_systemConfig.systemState = SYSTEM_ERROR;
+                g_systemFault = SYSTEM_FAULT_LIQUID_LEVEL;
                 TempHeat_SetPower(0);
+                /* 同时撤销模块使能，避免故障后外围仍保持工作。 */
+                EL_Disable();
             } else {
                 // 保温控制
                 if (g_systemConfig.currentTemp < g_systemConfig.targetTemp - 2) {
@@ -123,6 +136,7 @@ void Control_Update(void) {
             // 错误状态处理
             if (!g_systemConfig.pressureDetected) {
                 g_systemConfig.systemState = SYSTEM_OFF;
+                g_systemFault = SYSTEM_FAULT_NONE;
                 EL_Disable();
             }
             break;
@@ -168,4 +182,8 @@ uint8_t Control_GetCurrentTemp(void) {
   */
 SystemState_t Control_GetSystemState(void) {
     return g_systemConfig.systemState;
+}
+
+SystemFault_t Control_GetSystemFault(void) {
+    return g_systemFault;
 }

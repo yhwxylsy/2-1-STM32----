@@ -1,6 +1,9 @@
 #include "TempHeat.h"
 
 #define ADC_CONVERSION_WAIT_LIMIT 100000U /* 循环上限，实际时长需按目标编译配置校准 */
+#define ADC_CALIBRATION_WAIT_LIMIT 100000U /* 校准等待上限，实际时长需按目标编译配置校准 */
+
+static uint8_t g_adcReady = 0; /* 校准成功后才允许温度采样。 */
 
 /**
   * @brief  热敏电阻温度传感器和加热控制初始化
@@ -8,16 +11,26 @@
   * @retval 无
   */
 void TempHeat_Init(void) {
-    // 1. 初始化热敏电阻模拟输入
-    RCC_APB2PeriphClockCmd(THERMISTOR_RCC | RCC_APB2Periph_ADC1, ENABLE);
-    
+    uint32_t waitCount;
     GPIO_InitTypeDef GPIO_InitStructure;
+    ADC_InitTypeDef ADC_InitStructure;
+
+    g_adcReady = 0;
+    RCC_APB2PeriphClockCmd(THERMISTOR_RCC | RCC_APB2Periph_ADC1 | HEAT_RCC, ENABLE);
+
+    /* 先建立确定的加热关闭态，再启动可能失败的ADC校准。 */
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Pin = HEAT_PIN;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(HEAT_PORT, &GPIO_InitStructure);
+    GPIO_ResetBits(HEAT_PORT, HEAT_PIN);
+
+    // 初始化热敏电阻模拟输入
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
     GPIO_InitStructure.GPIO_Pin = THERMISTOR_PIN;
     GPIO_Init(THERMISTOR_PORT, &GPIO_InitStructure);
     
-    // 2. 初始化ADC1
-    ADC_InitTypeDef ADC_InitStructure;
+    // 初始化ADC1
     ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
     ADC_InitStructure.ADC_ScanConvMode = DISABLE;
     ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
@@ -31,20 +44,22 @@ void TempHeat_Init(void) {
     
     // 校准ADC1
     ADC_ResetCalibration(THERMISTOR_ADC);
-    while (ADC_GetResetCalibrationStatus(THERMISTOR_ADC));
+    waitCount = ADC_CALIBRATION_WAIT_LIMIT;
+    while (ADC_GetResetCalibrationStatus(THERMISTOR_ADC)) {
+        if (waitCount-- == 0U) {
+            return;
+        }
+    }
+
     ADC_StartCalibration(THERMISTOR_ADC);
-    while (ADC_GetCalibrationStatus(THERMISTOR_ADC));
-    
-    // 3. 初始化GPIO用于继电器控制
-    RCC_APB2PeriphClockCmd(HEAT_RCC, ENABLE);
-    
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_InitStructure.GPIO_Pin = HEAT_PIN;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(HEAT_PORT, &GPIO_InitStructure);
-    
-    // 初始状态关闭加热
-    GPIO_ResetBits(HEAT_PORT, HEAT_PIN);
+    waitCount = ADC_CALIBRATION_WAIT_LIMIT;
+    while (ADC_GetCalibrationStatus(THERMISTOR_ADC)) {
+        if (waitCount-- == 0U) {
+            return;
+        }
+    }
+
+    g_adcReady = 1;
 }
 
 /**
@@ -129,7 +144,7 @@ static uint16_t ApplyMovingAverage(uint16_t newValue) {
     return (uint16_t)(sum / g_tempFilter.count);
 }
 uint8_t TempHeat_GetCurrentTemp(uint8_t *temperature) {
-    if (temperature == 0) {
+    if (!g_adcReady || temperature == 0) {
         return 0;
     }
 
