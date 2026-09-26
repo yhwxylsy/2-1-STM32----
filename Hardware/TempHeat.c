@@ -1,0 +1,151 @@
+#include "TempHeat.h"
+
+/**
+  * @brief  热敏电阻温度传感器和加热控制初始化
+  * @param  无
+  * @retval 无
+  */
+void TempHeat_Init(void) {
+    // 1. 初始化热敏电阻模拟输入
+    RCC_APB2PeriphClockCmd(THERMISTOR_RCC | RCC_APB2Periph_ADC1, ENABLE);
+    
+    GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    GPIO_InitStructure.GPIO_Pin = THERMISTOR_PIN;
+    GPIO_Init(THERMISTOR_PORT, &GPIO_InitStructure);
+    
+    // 2. 初始化ADC1
+    ADC_InitTypeDef ADC_InitStructure;
+    ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
+    ADC_InitStructure.ADC_ScanConvMode = DISABLE;
+    ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+    ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+    ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+    ADC_InitStructure.ADC_NbrOfChannel = 1;
+    ADC_Init(THERMISTOR_ADC, &ADC_InitStructure);
+    
+    // 启用ADC1
+    ADC_Cmd(THERMISTOR_ADC, ENABLE);
+    
+    // 校准ADC1
+    ADC_ResetCalibration(THERMISTOR_ADC);
+    while (ADC_GetResetCalibrationStatus(THERMISTOR_ADC));
+    ADC_StartCalibration(THERMISTOR_ADC);
+    while (ADC_GetCalibrationStatus(THERMISTOR_ADC));
+    
+    // 3. 初始化GPIO用于继电器控制
+    RCC_APB2PeriphClockCmd(HEAT_RCC, ENABLE);
+    
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Pin = HEAT_PIN;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(HEAT_PORT, &GPIO_InitStructure);
+    
+    // 初始状态关闭加热
+    GPIO_ResetBits(HEAT_PORT, HEAT_PIN);
+}
+
+/**
+  * @brief  获取当前温度（基于热敏电阻）
+  * @param  无
+  * @retval 当前温度值（℃）
+  */
+
+// 滑动平均滤波缓冲区
+typedef struct {
+    uint16_t buffer[20];  // 采样缓冲区（20个采样点，增大缓冲区提高稳定性）
+    uint8_t index;        // 当前索引
+    uint8_t count;        // 采样数量
+} FilterBuffer_t;
+
+static FilterBuffer_t g_tempFilter = {0};
+
+// 中值滤波
+static uint16_t ApplyMedianFilter(uint16_t *samples, uint8_t count) {
+    // 对采样数据进行排序
+    for (uint8_t i = 0; i < count - 1; i++) {
+        for (uint8_t j = 0; j < count - i - 1; j++) {
+            if (samples[j] > samples[j + 1]) {
+                uint16_t temp = samples[j];
+                samples[j] = samples[j + 1];
+                samples[j + 1] = temp;
+            }
+        }
+    }
+    
+    // 返回中间值
+    return samples[count / 2];
+}
+
+// 多次采样取平均值（带中值滤波预处理）
+static uint16_t ADC_GetFilteredValue(void) {
+    uint16_t samples[20];  // 采样缓冲区
+    uint8_t sampleCount = 20;  // 增加采样次数到20次
+    
+    for (uint8_t i = 0; i < sampleCount; i++) {
+        // 配置ADC通道和采样时间（使用最长采样时间提高精度）
+        ADC_RegularChannelConfig(THERMISTOR_ADC, THERMISTOR_ADC_CH, 1, ADC_SampleTime_239Cycles5);
+        
+        ADC_SoftwareStartConvCmd(THERMISTOR_ADC, ENABLE);
+        while (!ADC_GetFlagStatus(THERMISTOR_ADC, ADC_FLAG_EOC));
+        
+        samples[i] = ADC_GetConversionValue(THERMISTOR_ADC);
+    }
+    
+    // 应用中值滤波去除异常值
+    return ApplyMedianFilter(samples, sampleCount);
+}
+
+// 滑动平均滤波
+static uint16_t ApplyMovingAverage(uint16_t newValue) {
+    // 将新值加入缓冲区
+    g_tempFilter.buffer[g_tempFilter.index] = newValue;
+    g_tempFilter.index = (g_tempFilter.index + 1) % 20;  // 缓冲区大小为20
+    
+    if (g_tempFilter.count < 20) {
+        g_tempFilter.count++;
+    }
+    
+    // 计算平均值
+    uint32_t sum = 0;
+    for (uint8_t i = 0; i < g_tempFilter.count; i++) {
+        sum += g_tempFilter.buffer[i];
+    }
+    
+    return (uint16_t)(sum / g_tempFilter.count);
+}
+uint8_t TempHeat_GetCurrentTemp(void) {
+    // 1. 多次采样并应用滤波
+    uint16_t rawAdc = ADC_GetFilteredValue();
+    uint16_t filteredAdc = ApplyMovingAverage(rawAdc);
+    
+    // 2. 计算热敏电阻阻值
+    float voltage = (float)filteredAdc / 4095.0f * 3.3f;  // 假设参考电压为3.3V
+    float resistance = THERMISTOR_R_REF * voltage / (3.3f - voltage);
+    
+    // 3. 使用B值公式计算温度
+    float lnR = log(resistance / THERMISTOR_R_REF25);
+    float tempK = 1.0f / (1.0f / THERMISTOR_T_REF + lnR / THERMISTOR_B_VALUE);
+    float tempC = tempK - 273.15f;
+    
+    // 4. 转换为整数并返回（确保温度在合理范围内）
+    if (tempC < 0) tempC = 0;
+    if (tempC > 100) tempC = 100;
+    
+    return (uint8_t)(tempC + 0.5f); // 四舍五入
+}
+
+/**
+  * @brief  设置加热功率（继电器控制）
+  * @param  power: 功率值（0-100），0表示关闭，>0表示开启
+  * @retval 无
+  */
+void TempHeat_SetPower(uint8_t power) {
+    if (power > 0) {
+        // 继电器吸合，开启加热
+        GPIO_SetBits(HEAT_PORT, HEAT_PIN);
+    } else {
+        // 继电器断开，关闭加热
+        GPIO_ResetBits(HEAT_PORT, HEAT_PIN);
+    }
+}
