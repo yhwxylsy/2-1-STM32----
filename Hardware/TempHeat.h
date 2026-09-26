@@ -27,7 +27,8 @@
 
 // 函数声明
 void TempHeat_Init(void);
-uint8_t TempHeat_GetCurrentTemp(void);
+/* 返回1表示温度有效；成功时通过参数返回摄氏温度。 */
+uint8_t TempHeat_GetCurrentTemp(uint8_t *temperature);
 void TempHeat_SetPower(uint8_t power);
 
 #endif

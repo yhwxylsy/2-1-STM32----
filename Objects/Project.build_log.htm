@@ -9,7 +9,7 @@ License Information: 111 yanghao, 111, LIC=32B1Q-NLPAG-Z9UG9-42G6R-0WQZ7-ZB2RN
  
 Tool Versions:
 Toolchain:       MDK-ARM Plus  Version: 5.43.0.0
-Toolchain Path:  D:\keil5\ARM\ARMCLANG\bin\
+Toolchain Path:  D:\keil5\ARM\ARMCLANG\Bin
 C Compiler:      ArmClang.exe V6.24
 Assembler:       Armasm.exe V6.24
 Linker/Locator:  ArmLink.exe V6.24
@@ -22,15 +22,111 @@ Dialog DLL:      TCM.DLL V1.56.6.0
  
 <h2>Project:</h2>
 D:\STM32-porject\2-1 STM32����ģ��\Project.uvprojx
-Project File Date:  12/18/2025
+Project File Date:  09/26/2026
 
 <h2>Output:</h2>
-*** Target 'Target 1' uses ARM-Compiler 'Default Compiler Version 5' which is not available.
-*** Please review the installed ARM Compiler Versions:
-   'Manage Project Items - Folders/Extensions' to manage ARM Compiler Versions.
-   'Options for Target - Target' to select an ARM Compiler Version for the target.
-*** Build aborted.
-Build Time Elapsed:  00:00:03
+*** Using Compiler 'V6.24', folder: 'D:\keil5\ARM\ARMCLANG\Bin'
+Build target 'Target 1'
+User/stm32f10x_it.c(26): warning: In file included from...
+./Hardware\Serial.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 串口参数配置
+      | ^
+User/stm32f10x_it.c(186): warning: // comments are not allowed in this language [-Wcomment]
+  186 |         // 清除中断标志位
+      |         ^
+2 warnings generated.
+compiling stm32f10x_it.c...
+User/main.c(1): warning: // comments are not allowed in this language [-Wcomment]
+    1 | #include "stm32f10x.h"                  // Device header
+      |                                         ^
+User/main.c(2): warning: In file included from...
+./Hardware\Control.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 系统状态枚举
+      | ^
+User/main.c(3): warning: In file included from...
+./Hardware\TempHeat.h(7): warning: // comments are not allowed in this language [-Wcomment]
+    7 | // 热敏电阻传感器端口定义 (AQ为模拟输出引脚)
+      | ^
+User/main.c(4): warning: In file included from...
+./Hardware\Pressure.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // HX711压力传感器端口定义
+      | ^
+User/main.c(5): warning: In file included from...
+./Hardware\Level.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 反射式红外传感器端口定义
+      | ^
+User/main.c(6): warning: In file included from...
+./Hardware\Display.h(8): warning: // comments are not allowed in this language [-Wcomment]
+    8 | // 按键端口定义
+      | ^
+User/main.c(7): warning: In file included from...
+./Hardware\EL.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 使能控制端口定义
+      | ^
+User/main.c(8): warning: In file included from...
+./Hardware\Serial.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 串口参数配置
+      | ^
+8 warnings generated.
+compiling main.c...
+Hardware/Serial.c(1): warning: In file included from...
+Hardware\Serial.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 串口参数配置
+      | ^
+Hardware/Serial.c(20): warning: // comments are not allowed in this language [-Wcomment]
+   20 |     // 1. 使能时钟
+      |     ^
+2 warnings generated.
+compiling Serial.c...
+Hardware/Control.c(1): warning: In file included from...
+Hardware\Control.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 系统状态枚举
+      | ^
+Hardware/Control.c(2): warning: In file included from...
+Hardware\TempHeat.h(7): warning: // comments are not allowed in this language [-Wcomment]
+    7 | // 热敏电阻传感器端口定义 (AQ为模拟输出引脚)
+      | ^
+Hardware/Control.c(3): warning: In file included from...
+Hardware\Pressure.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // HX711压力传感器端口定义
+      | ^
+Hardware/Control.c(4): warning: In file included from...
+Hardware\Level.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 反射式红外传感器端口定义
+      | ^
+Hardware/Control.c(5): warning: In file included from...
+Hardware\Display.h(8): warning: // comments are not allowed in this language [-Wcomment]
+    8 | // 按键端口定义
+      | ^
+Hardware/Control.c(6): warning: In file included from...
+Hardware\EL.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 使能控制端口定义
+      | ^
+Hardware/Control.c(7): warning: In file included from...
+Hardware\Serial.h(6): warning: // comments are not allowed in this language [-Wcomment]
+    6 | // 串口参数配置
+      | ^
+Hardware/Control.c(9): warning: // comments are not allowed in this language [-Wcomment]
+    9 | // 系统配置全局变量
+      | ^
+8 warnings generated.
+compiling Control.c...
+linking...
+Program Size: Code=19660 RO-data=2312 RW-data=8 ZI-data=2096  
+".\Objects\Project.axf" - 0 Error(s), 20 Warning(s).
+
+<h2>Software Packages used:</h2>
+
+Package Vendor: Keil
+                http://www.keil.com/pack/Keil.STM32F1xx_DFP.2.2.0.pack
+                Keil::STM32F1xx_DFP@2.2.0
+                STMicroelectronics STM32F1 Series Device Support, Drivers and Examples
+
+<h2>Collection of Component include folders:</h2>
+  D:/keil5/Keil/STM32F1xx_DFP/2.2.0/Device/Include
+
+<h2>Collection of Component Files used:</h2>
+Build Time Elapsed:  00:00:01
 </pre>
 </body>
 </html>

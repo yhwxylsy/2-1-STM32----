@@ -1,10 +1,15 @@
 #include "Serial.h"
 #include "math.h"
 
+/* ISR单生产者、主循环单消费者；volatile保证共享索引每次都从内存读取。 */
 static volatile uint8_t g_rxBuffer[SERIAL_RX_BUFFER_SIZE];
 static volatile uint8_t g_rxHead = 0;
 static volatile uint8_t g_rxTail = 0;
 static volatile uint32_t g_rxOverflowCount = 0;
+static volatile uint8_t g_txBuffer[SERIAL_TX_BUFFER_SIZE];
+static volatile uint8_t g_txHead = 0;
+static volatile uint8_t g_txTail = 0;
+static volatile uint32_t g_txOverflowCount = 0;
 
 /**
   * @brief  串口初始化函数
@@ -48,6 +53,7 @@ void Serial_Init(void) {
     NVIC_Init(&NVIC_InitStructure);
     
     // 5. 使能USART接收中断
+    USART_ITConfig(SERIAL_USART, USART_IT_TXE, DISABLE);
     USART_ITConfig(SERIAL_USART, USART_IT_RXNE, ENABLE);
     
     // 6. 使能USART
@@ -60,11 +66,18 @@ void Serial_Init(void) {
   * @retval 无
   */
 void Serial_SendByte(uint8_t byte) {
-    // 等待发送缓冲区为空
-    while (USART_GetFlagStatus(SERIAL_USART, USART_FLAG_TXE) == RESET);
-    
-    // 发送数据
-    USART_SendData(SERIAL_USART, byte);
+  uint8_t head = g_txHead;
+  uint8_t next = (uint8_t)(head + 1U);
+
+  if (next == g_txTail) {
+    /* 队列满時丢弃新字节，避免发送接口阻塞主循环。 */
+    g_txOverflowCount++;
+    return;
+  }
+
+  g_txBuffer[head] = byte;
+  g_txHead = next;
+  USART_ITConfig(SERIAL_USART, USART_IT_TXE, ENABLE);
 }
 
 /**
@@ -103,6 +116,7 @@ uint8_t Serial_ReceiveByte(void) {
   uint8_t byte;
 
   if (tail == g_rxHead) {
+    /* 空队列时返回0；调用方应先检查Serial_GetRxFlag()。 */
     return 0;
   }
 
@@ -125,6 +139,7 @@ void Serial_RxPush(uint8_t byte) {
   uint8_t next = (head + 1U) & (SERIAL_RX_BUFFER_SIZE - 1U);
 
   if (next == g_rxTail) {
+    /* 队列满时丢弃新数据，保留尚未消费的旧数据并记录溢出。 */
     g_rxOverflowCount++;
     return;
   }
@@ -135,4 +150,20 @@ void Serial_RxPush(uint8_t byte) {
 
 uint32_t Serial_GetRxOverflowCount(void) {
   return g_rxOverflowCount;
+}
+
+void Serial_TxEmptyISR(void) {
+  uint8_t tail = g_txTail;
+
+  if (tail == g_txHead) {
+    USART_ITConfig(SERIAL_USART, USART_IT_TXE, DISABLE);
+    return;
+  }
+
+  USART_SendData(SERIAL_USART, g_txBuffer[tail]);
+  g_txTail = (uint8_t)(tail + 1U);
+}
+
+uint32_t Serial_GetTxOverflowCount(void) {
+  return g_txOverflowCount;
 }

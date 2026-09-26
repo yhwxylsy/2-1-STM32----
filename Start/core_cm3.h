@@ -748,7 +748,7 @@ typedef struct
 
 #elif defined   (  __GNUC__  )
   #define __ASM            __asm                                      /*!< asm keyword for GNU Compiler          */
-  #define __INLINE         inline                                     /*!< inline keyword for GNU Compiler       */
+  #define __INLINE         __inline                                   /*!< GNU/Clang inline keyword, including C90 mode */
 
 #elif defined   (  __TASKING__  )
   #define __ASM            __asm                                      /*!< asm keyword for TASKING Compiler      */

@@ -6,7 +6,9 @@
   * @retval 无
   */
 void EL_Init(void) {
-    RCC_APB2PeriphClockCmd(EL_RCC, ENABLE);
+  RCC_APB2PeriphClockCmd(EL_RCC | RCC_APB2Periph_AFIO, ENABLE);
+  /* PB4复用为普通GPIO；关闭JTAG-DP但保留SW-DP调试接口。 */
+  GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
     
     GPIO_InitTypeDef GPIO_InitStructure;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;

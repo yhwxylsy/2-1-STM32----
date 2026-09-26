@@ -1,33 +1,14 @@
-.\objects\display.o: Hardware\Display.c
-.\objects\display.o: Hardware\Display.h
-.\objects\display.o: .\Start\stm32f10x.h
-.\objects\display.o: .\Start\core_cm3.h
-.\objects\display.o: D:\keil5\ARM\ARMCC\Bin\..\include\stdint.h
-.\objects\display.o: .\Start\system_stm32f10x.h
-.\objects\display.o: .\User\stm32f10x_conf.h
-.\objects\display.o: .\Library\stm32f10x_adc.h
-.\objects\display.o: .\Start\stm32f10x.h
-.\objects\display.o: .\Library\stm32f10x_bkp.h
-.\objects\display.o: .\Library\stm32f10x_can.h
-.\objects\display.o: .\Library\stm32f10x_cec.h
-.\objects\display.o: .\Library\stm32f10x_crc.h
-.\objects\display.o: .\Library\stm32f10x_dac.h
-.\objects\display.o: .\Library\stm32f10x_dbgmcu.h
-.\objects\display.o: .\Library\stm32f10x_dma.h
-.\objects\display.o: .\Library\stm32f10x_exti.h
-.\objects\display.o: .\Library\stm32f10x_flash.h
-.\objects\display.o: .\Library\stm32f10x_fsmc.h
-.\objects\display.o: .\Library\stm32f10x_gpio.h
-.\objects\display.o: .\Library\stm32f10x_i2c.h
-.\objects\display.o: .\Library\stm32f10x_iwdg.h
-.\objects\display.o: .\Library\stm32f10x_pwr.h
-.\objects\display.o: .\Library\stm32f10x_rcc.h
-.\objects\display.o: .\Library\stm32f10x_rtc.h
-.\objects\display.o: .\Library\stm32f10x_sdio.h
-.\objects\display.o: .\Library\stm32f10x_spi.h
-.\objects\display.o: .\Library\stm32f10x_tim.h
-.\objects\display.o: .\Library\stm32f10x_usart.h
-.\objects\display.o: .\Library\stm32f10x_wwdg.h
-.\objects\display.o: .\Library\misc.h
-.\objects\display.o: Hardware\Control.h
-.\objects\display.o: Hardware\OLED.h
+./objects/display.o: Hardware\Display.c Hardware\Display.h \
+  Start\stm32f10x.h Start\core_cm3.h Start\system_stm32f10x.h \
+  User\stm32f10x_conf.h Library\stm32f10x_adc.h Library\stm32f10x_bkp.h \
+  Library\stm32f10x_can.h Library\stm32f10x_cec.h \
+  Library\stm32f10x_crc.h Library\stm32f10x_dac.h \
+  Library\stm32f10x_dbgmcu.h Library\stm32f10x_dma.h \
+  Library\stm32f10x_exti.h Library\stm32f10x_flash.h \
+  Library\stm32f10x_fsmc.h Library\stm32f10x_gpio.h \
+  Library\stm32f10x_i2c.h Library\stm32f10x_iwdg.h \
+  Library\stm32f10x_pwr.h Library\stm32f10x_rcc.h \
+  Library\stm32f10x_rtc.h Library\stm32f10x_sdio.h \
+  Library\stm32f10x_spi.h Library\stm32f10x_tim.h \
+  Library\stm32f10x_usart.h Library\stm32f10x_wwdg.h Library\misc.h \
+  Hardware\Control.h Hardware\OLED.h

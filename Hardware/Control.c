@@ -30,10 +30,21 @@ void Control_Init(void) {
   */
 void Control_Update(void) {
     uint8_t pressureDetected;
+    uint8_t currentTemp;
 
     // 读取传感器数据
-    g_systemConfig.currentTemp = TempHeat_GetCurrentTemp();
+    if (!TempHeat_GetCurrentTemp(&currentTemp)) {
+        /* 温度数据无效时锁定错误状态并立即撤销加热。 */
+        g_systemConfig.systemState = SYSTEM_ERROR;
+        TempHeat_SetPower(0);
+        EL_Disable();
+        Display_Update(g_systemConfig.targetTemp, g_systemConfig.currentTemp, g_systemConfig.systemState);
+        return;
+    }
+    g_systemConfig.currentTemp = currentTemp;
+
     if (!Pressure_Detect(&pressureDetected)) {
+        /* 压力传感器读取失败不能等同于正常的无压力读数。 */
         g_systemConfig.pressureDetected = 0;
         g_systemConfig.systemState = SYSTEM_ERROR;
         TempHeat_SetPower(0);

@@ -118,6 +118,7 @@ uint32_t GetTick(void) {
     uint16_t counter;
     uint32_t primask = __get_PRIMASK();
 
+    /* 原子读取秒计数与CNT，处理恰好跨越TIM2更新事件的情况。 */
     __disable_irq();
     seconds = timer_seconds;
     counter = (uint16_t)TIM2->CNT;

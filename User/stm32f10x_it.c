@@ -160,13 +160,14 @@ void SysTick_Handler(void)
   */
 void USART1_IRQHandler(void)
 {
-    if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
-    {
-    Serial_RxPush((uint8_t)USART_ReceiveData(USART1));
-        
-        // 清除中断标志位
-        USART_ClearITPendingBit(USART1, USART_IT_RXNE);
+  if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) {
+      /* ISR仅搬运字节入队，不在中断中解析命令或发送数据。 */
+      Serial_RxPush((uint8_t)USART_ReceiveData(USART1));
     }
+
+  if (USART_GetITStatus(USART1, USART_IT_TXE) != RESET) {
+    Serial_TxEmptyISR();
+  }
 }
 
 /**
@@ -179,7 +180,8 @@ void TIM2_IRQHandler(void)
 {
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
     {
-    timer_seconds++;
+      /* TIM2每次更新代表一秒，用于构造单调运行时间。 */
+      timer_seconds++;
         
         // 清除中断标志位
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);

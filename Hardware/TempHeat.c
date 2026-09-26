@@ -1,5 +1,7 @@
 #include "TempHeat.h"
 
+#define ADC_CONVERSION_WAIT_LIMIT 100000U /* 循环上限，实际时长需按目标编译配置校准 */
+
 /**
   * @brief  热敏电阻温度传感器和加热控制初始化
   * @param  无
@@ -78,22 +80,34 @@ static uint16_t ApplyMedianFilter(uint16_t *samples, uint8_t count) {
 }
 
 // 多次采样取平均值（带中值滤波预处理）
-static uint16_t ADC_GetFilteredValue(void) {
+static uint8_t ADC_GetFilteredValue(uint16_t *filteredValue) {
     uint16_t samples[20];  // 采样缓冲区
     uint8_t sampleCount = 20;  // 增加采样次数到20次
+
+    if (filteredValue == 0) {
+        return 0;
+    }
     
     for (uint8_t i = 0; i < sampleCount; i++) {
+        uint32_t waitCount = ADC_CONVERSION_WAIT_LIMIT;
+
         // 配置ADC通道和采样时间（使用最长采样时间提高精度）
         ADC_RegularChannelConfig(THERMISTOR_ADC, THERMISTOR_ADC_CH, 1, ADC_SampleTime_239Cycles5);
         
         ADC_SoftwareStartConvCmd(THERMISTOR_ADC, ENABLE);
-        while (!ADC_GetFlagStatus(THERMISTOR_ADC, ADC_FLAG_EOC));
+        while (!ADC_GetFlagStatus(THERMISTOR_ADC, ADC_FLAG_EOC)) {
+            if (waitCount-- == 0U) {
+                /* EOC超时沿温度读取失败路径触发加热关断。 */
+                return 0;
+            }
+        }
         
         samples[i] = ADC_GetConversionValue(THERMISTOR_ADC);
     }
     
     // 应用中值滤波去除异常值
-    return ApplyMedianFilter(samples, sampleCount);
+    *filteredValue = ApplyMedianFilter(samples, sampleCount);
+    return 1;
 }
 
 // 滑动平均滤波
@@ -114,10 +128,28 @@ static uint16_t ApplyMovingAverage(uint16_t newValue) {
     
     return (uint16_t)(sum / g_tempFilter.count);
 }
-uint8_t TempHeat_GetCurrentTemp(void) {
+uint8_t TempHeat_GetCurrentTemp(uint8_t *temperature) {
+    if (temperature == 0) {
+        return 0;
+    }
+
     // 1. 多次采样并应用滤波
-    uint16_t rawAdc = ADC_GetFilteredValue();
+    uint16_t rawAdc;
+
+    if (!ADC_GetFilteredValue(&rawAdc)) {
+        return 0;
+    }
+
+    if (rawAdc == 0U || rawAdc >= 4095U) {
+        /* ADC轨到轨读数可能表示传感器开路或短路，拒绝参与温控。 */
+        return 0;
+    }
+
     uint16_t filteredAdc = ApplyMovingAverage(rawAdc);
+
+    if (filteredAdc == 0U || filteredAdc >= 4095U) {
+        return 0;
+    }
     
     // 2. 计算热敏电阻阻值
     float voltage = (float)filteredAdc / 4095.0f * 3.3f;  // 假设参考电压为3.3V
@@ -128,11 +160,14 @@ uint8_t TempHeat_GetCurrentTemp(void) {
     float tempK = 1.0f / (1.0f / THERMISTOR_T_REF + lnR / THERMISTOR_B_VALUE);
     float tempC = tempK - 273.15f;
     
-    // 4. 转换为整数并返回（确保温度在合理范围内）
-    if (tempC < 0) tempC = 0;
-    if (tempC > 100) tempC = 100;
-    
-    return (uint8_t)(tempC + 0.5f); // 四舍五入
+    // 4. Reject invalid sensor values instead of clamping them into a valid reading.
+    if (!(tempC >= 0.0f && tempC <= 100.0f)) {
+        /* 不将无效结果钳位成看似正常的边界温度。 */
+        return 0;
+    }
+
+    *temperature = (uint8_t)(tempC + 0.5f);
+    return 1;
 }
 
 /**

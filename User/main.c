@@ -7,7 +7,7 @@
 #include "EL.h"
 #include "Serial.h"
 
-volatile uint32_t timer_seconds = 0;
+volatile uint32_t timer_seconds = 0; /* Updated by TIM2_IRQHandler; unit is seconds. */
 
 /**
 	* @brief  TIM2 timebase initialization
@@ -61,11 +61,13 @@ int main(void)
 	{
 		uint32_t currentTime = GetTick();
 
+		/* 固定控制周期，避免温控频率随主循环空转速度变化。 */
 		if (currentTime - lastControlTime >= 100U) {
 			lastControlTime = currentTime;
 			Control_Update();
 		}
 
+		/* 按键扫描周期独立于较慢的温控周期。 */
 		if (currentTime - lastButtonScanTime >= 10U) {
 			lastButtonScanTime = currentTime;
 			Display_CheckButtons();

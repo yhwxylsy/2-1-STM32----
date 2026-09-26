@@ -44,29 +44,29 @@ void Pressure_Init(void) {
 uint8_t HX711_Read(int32_t *weight) {
     int32_t data = 0;
     uint8_t i = 0;
-  uint16_t startCount;
-  uint16_t currentCount;
-  uint32_t elapsedTicks;
-  uint32_t timerPeriod;
+    uint16_t startCount;
+    uint16_t currentCount;
+    uint32_t elapsedTicks;
+    uint32_t timerPeriod;
 
-  if (weight == 0 || (TIM2->CR1 & TIM_CR1_CEN) == 0) {
-    return 0;
-  }
-    
-    // 等待DT引脚变低，表示数据准备就绪
-  startCount = TIM_GetCounter(TIM2);
-  timerPeriod = (uint32_t)TIM2->ARR + 1U;
-  while (GPIO_ReadInputDataBit(HX711_DT_PORT, HX711_DT_PIN)) {
-    currentCount = TIM_GetCounter(TIM2);
-    if (currentCount >= startCount) {
-      elapsedTicks = currentCount - startCount;
-    } else {
-      elapsedTicks = timerPeriod - startCount + currentCount;
+    if (weight == 0 || (TIM2->CR1 & TIM_CR1_CEN) == 0) {
+        return 0;
     }
-    if (elapsedTicks >= HX711_READY_TIMEOUT_TICKS) {
-      return 0;
+
+    /* 用TIM2计数差限制等待时间，避免HX711未就绪时卡住主循环。 */
+    startCount = TIM_GetCounter(TIM2);
+    timerPeriod = (uint32_t)TIM2->ARR + 1U;
+    while (GPIO_ReadInputDataBit(HX711_DT_PORT, HX711_DT_PIN)) {
+        currentCount = TIM_GetCounter(TIM2);
+        if (currentCount >= startCount) {
+            elapsedTicks = currentCount - startCount;
+        } else {
+            elapsedTicks = timerPeriod - startCount + currentCount;
+        }
+        if (elapsedTicks >= HX711_READY_TIMEOUT_TICKS) {
+            return 0;
+        }
     }
-  }
     
     // 读取24位数据
     for (i = 0; i < 24; i++) {
@@ -108,14 +108,15 @@ uint8_t HX711_Read(int32_t *weight) {
   */
 uint8_t Pressure_Detect(uint8_t *pressureDetected) {
     // 读取HX711数据
-  int32_t weight;
+    int32_t weight;
 
-  if (pressureDetected == 0 || !HX711_Read(&weight)) {
-    return 0;
-  }
+    /* 读取失败与有效读数中的“无压力”必须区分。 */
+    if (pressureDetected == 0 || !HX711_Read(&weight)) {
+        return 0;
+    }
     
     // 超过阈值表示有压力
     // 注意：实际使用时需要校准传感器，确定合适的阈值
-  *pressureDetected = (weight > HX711_THRESHOLD) ? 1 : 0;
-  return 1;
+    *pressureDetected = (weight > HX711_THRESHOLD) ? 1 : 0;
+    return 1;
 }
