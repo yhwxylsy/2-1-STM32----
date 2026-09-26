@@ -7,15 +7,14 @@
 #include "EL.h"
 #include "Serial.h"
 
-// 定时器中断标志
-uint8_t timer_flag = 0;
+volatile uint32_t timer_seconds = 0;
 
 /**
-  * @brief  系统时钟初始化
+	* @brief  TIM2 timebase initialization
   * @param  无
   * @retval 无
   */
-void SystemClock_Init(void) {
+void Timer2_Init(void) {
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
     
     TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStructure;
@@ -41,8 +40,12 @@ void SystemClock_Init(void) {
 
 int main(void)
 {
-	// 初始化系统时钟
-	SystemClock_Init();
+	uint32_t lastControlTime = 0;
+	uint32_t lastButtonScanTime = 0;
+	uint32_t lastStatusTime = 0;
+
+	// 初始化TIM2时基
+	Timer2_Init();
 	
 	// 初始化各个模块
 	TempHeat_Init();
@@ -56,14 +59,21 @@ int main(void)
 	// 主循环
 	while (1)
 	{
-		// 更新系统状态
-		Control_Update();
-		
-		// 检查按键
-		Display_CheckButtons();
-		
-		// 当定时器中断标志设置时，发送数据
-		if (timer_flag) {
+		uint32_t currentTime = GetTick();
+
+		if (currentTime - lastControlTime >= 100U) {
+			lastControlTime = currentTime;
+			Control_Update();
+		}
+
+		if (currentTime - lastButtonScanTime >= 10U) {
+			lastButtonScanTime = currentTime;
+			Display_CheckButtons();
+		}
+
+		// 每秒发送一次状态
+		if (currentTime - lastStatusTime >= 1000U) {
+			lastStatusTime = currentTime;
 			// 通过串口发送传感器数据
 			Serial_SendString((uint8_t*)"System Status:\r\n");
 			Serial_SendString((uint8_t*)"Current Temp: ");
@@ -78,7 +88,10 @@ int main(void)
 			}
 			
 			Serial_SendString((uint8_t*)"Pressure: ");
-			if (Pressure_Detect()) {
+			uint8_t pressureDetected;
+			if (!Pressure_Detect(&pressureDetected)) {
+				Serial_SendString((uint8_t*)"Sensor Error\r\n");
+			} else if (pressureDetected) {
 				Serial_SendString((uint8_t*)"Detected\r\n");
 			} else {
 				Serial_SendString((uint8_t*)"Not Detected\r\n");
@@ -86,8 +99,6 @@ int main(void)
 			
 			Serial_SendString((uint8_t*)"--------------------\r\n");
 			
-			// 清除中断标志
-			timer_flag = 0;
 		}
 		
 		// 处理串口接收的数据
@@ -108,7 +119,10 @@ int main(void)
 						Serial_SendString((uint8_t*)"Absent\r\n");
 					}
 					Serial_SendString((uint8_t*)"Pressure: ");
-					if (Pressure_Detect()) {
+					uint8_t pressureDetected;
+					if (!Pressure_Detect(&pressureDetected)) {
+						Serial_SendString((uint8_t*)"Sensor Error\r\n");
+					} else if (pressureDetected) {
 						Serial_SendString((uint8_t*)"Detected\r\n");
 					} else {
 						Serial_SendString((uint8_t*)"Not Detected\r\n");

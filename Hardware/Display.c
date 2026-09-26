@@ -1,6 +1,8 @@
 #include "Display.h"
 #include "Control.h"
 
+extern volatile uint32_t timer_seconds;
+
 // 按键状态变量
 static uint8_t lastUpState = 1;
 static uint8_t lastDownState = 1;
@@ -111,14 +113,22 @@ void Display_CheckButtons(void) {
   * @retval 系统运行时间
   */
 uint32_t GetTick(void) {
-    static uint32_t tick = 0;
-    static uint32_t lastTime = 0;
-    
-    uint32_t currentTime = TIM2->CNT;
-    if (currentTime < lastTime) {
-        tick += 0x10000;
+    uint32_t seconds;
+    uint32_t timerPeriod;
+    uint16_t counter;
+    uint32_t primask = __get_PRIMASK();
+
+    __disable_irq();
+    seconds = timer_seconds;
+    counter = (uint16_t)TIM2->CNT;
+    if ((TIM2->SR & TIM_SR_UIF) != 0) {
+        seconds++;
+        counter = (uint16_t)TIM2->CNT;
     }
-    lastTime = currentTime;
-    
-    return tick + currentTime;
+    if ((primask & 1U) == 0) {
+        __enable_irq();
+    }
+
+    timerPeriod = (uint32_t)TIM2->ARR + 1U;
+    return seconds * 1000U + ((uint32_t)counter * 1000U) / timerPeriod;
 }

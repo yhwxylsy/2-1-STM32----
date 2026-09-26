@@ -41,12 +41,32 @@ void Pressure_Init(void) {
   * @param  无
   * @retval 压力传感器原始数据
   */
-int32_t HX711_Read(void) {
+uint8_t HX711_Read(int32_t *weight) {
     int32_t data = 0;
     uint8_t i = 0;
+  uint16_t startCount;
+  uint16_t currentCount;
+  uint32_t elapsedTicks;
+  uint32_t timerPeriod;
+
+  if (weight == 0 || (TIM2->CR1 & TIM_CR1_CEN) == 0) {
+    return 0;
+  }
     
     // 等待DT引脚变低，表示数据准备就绪
-    while (GPIO_ReadInputDataBit(HX711_DT_PORT, HX711_DT_PIN));
+  startCount = TIM_GetCounter(TIM2);
+  timerPeriod = (uint32_t)TIM2->ARR + 1U;
+  while (GPIO_ReadInputDataBit(HX711_DT_PORT, HX711_DT_PIN)) {
+    currentCount = TIM_GetCounter(TIM2);
+    if (currentCount >= startCount) {
+      elapsedTicks = currentCount - startCount;
+    } else {
+      elapsedTicks = timerPeriod - startCount + currentCount;
+    }
+    if (elapsedTicks >= HX711_READY_TIMEOUT_TICKS) {
+      return 0;
+    }
+  }
     
     // 读取24位数据
     for (i = 0; i < 24; i++) {
@@ -77,7 +97,8 @@ int32_t HX711_Read(void) {
         data |= 0xFF000000;  // 符号扩展到32位
     }
     
-    return data;
+    *weight = data;
+    return 1;
 }
 
 /**
@@ -85,11 +106,16 @@ int32_t HX711_Read(void) {
   * @param  无
   * @retval 0：无压力，1：有压力
   */
-uint8_t Pressure_Detect(void) {
+uint8_t Pressure_Detect(uint8_t *pressureDetected) {
     // 读取HX711数据
-    int32_t weight = HX711_Read();
+  int32_t weight;
+
+  if (pressureDetected == 0 || !HX711_Read(&weight)) {
+    return 0;
+  }
     
     // 超过阈值表示有压力
     // 注意：实际使用时需要校准传感器，确定合适的阈值
-    return (weight > HX711_THRESHOLD) ? 1 : 0;
+  *pressureDetected = (weight > HX711_THRESHOLD) ? 1 : 0;
+  return 1;
 }

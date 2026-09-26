@@ -1,9 +1,10 @@
 #include "Serial.h"
 #include "math.h"
 
-// 全局变量定义
-uint8_t Serial_RxData = 0;
-uint8_t Serial_RxFlag = 0;
+static volatile uint8_t g_rxBuffer[SERIAL_RX_BUFFER_SIZE];
+static volatile uint8_t g_rxHead = 0;
+static volatile uint8_t g_rxTail = 0;
+static volatile uint32_t g_rxOverflowCount = 0;
 
 /**
   * @brief  串口初始化函数
@@ -98,11 +99,16 @@ void Serial_SendNumber(uint32_t num, uint8_t len) {
   * @retval 接收到的字节
   */
 uint8_t Serial_ReceiveByte(void) {
-    // 清除接收标志
-    Serial_RxFlag = 0;
-    
-    // 返回接收到的数据
-    return Serial_RxData;
+  uint8_t tail = g_rxTail;
+  uint8_t byte;
+
+  if (tail == g_rxHead) {
+    return 0;
+  }
+
+  byte = g_rxBuffer[tail];
+  g_rxTail = (tail + 1U) & (SERIAL_RX_BUFFER_SIZE - 1U);
+  return byte;
 }
 
 /**
@@ -111,5 +117,22 @@ uint8_t Serial_ReceiveByte(void) {
   * @retval 接收标志（1: 接收到数据, 0: 未接收到数据）
   */
 uint8_t Serial_GetRxFlag(void) {
-    return Serial_RxFlag;
+  return g_rxHead != g_rxTail;
+}
+
+void Serial_RxPush(uint8_t byte) {
+  uint8_t head = g_rxHead;
+  uint8_t next = (head + 1U) & (SERIAL_RX_BUFFER_SIZE - 1U);
+
+  if (next == g_rxTail) {
+    g_rxOverflowCount++;
+    return;
+  }
+
+  g_rxBuffer[head] = byte;
+  g_rxHead = next;
+}
+
+uint32_t Serial_GetRxOverflowCount(void) {
+  return g_rxOverflowCount;
 }

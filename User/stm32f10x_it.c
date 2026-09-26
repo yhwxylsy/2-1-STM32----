@@ -23,6 +23,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
+#include "Serial.h"
 
 /** @addtogroup STM32F10x_StdPeriph_Template
   * @{
@@ -157,17 +158,11 @@ void SysTick_Handler(void)
   * @param  None
   * @retval None
   */
-extern uint8_t Serial_RxData;
-extern uint8_t Serial_RxFlag;
 void USART1_IRQHandler(void)
 {
     if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
     {
-        // 读取接收到的数据
-        Serial_RxData = USART_ReceiveData(USART1);
-        
-        // 设置接收标志
-        Serial_RxFlag = 1;
+    Serial_RxPush((uint8_t)USART_ReceiveData(USART1));
         
         // 清除中断标志位
         USART_ClearITPendingBit(USART1, USART_IT_RXNE);
@@ -179,13 +174,12 @@ void USART1_IRQHandler(void)
   * @param  None
   * @retval None
   */
-extern uint8_t timer_flag;
+extern volatile uint32_t timer_seconds;
 void TIM2_IRQHandler(void)
 {
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
     {
-        // 设置中断标志
-        timer_flag = 1;
+    timer_seconds++;
         
         // 清除中断标志位
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);

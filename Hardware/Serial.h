@@ -14,6 +14,7 @@
 
 // 波特率设置（可根据需要修改）
 #define SERIAL_BAUDRATE         9600
+#define SERIAL_RX_BUFFER_SIZE   128U
 
 // 函数声明
 void Serial_Init(void);
@@ -22,9 +23,7 @@ void Serial_SendString(uint8_t* str);
 void Serial_SendNumber(uint32_t num, uint8_t len);
 uint8_t Serial_ReceiveByte(void);
 uint8_t Serial_GetRxFlag(void);
-
-// 全局变量声明
-extern uint8_t Serial_RxData;
-extern uint8_t Serial_RxFlag;
+void Serial_RxPush(uint8_t byte);
+uint32_t Serial_GetRxOverflowCount(void);
 
 #endif

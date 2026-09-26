@@ -29,9 +29,19 @@ void Control_Init(void) {
   * @retval 无
   */
 void Control_Update(void) {
+    uint8_t pressureDetected;
+
     // 读取传感器数据
     g_systemConfig.currentTemp = TempHeat_GetCurrentTemp();
-    g_systemConfig.pressureDetected = Pressure_Detect();
+    if (!Pressure_Detect(&pressureDetected)) {
+        g_systemConfig.pressureDetected = 0;
+        g_systemConfig.systemState = SYSTEM_ERROR;
+        TempHeat_SetPower(0);
+        EL_Disable();
+        Display_Update(g_systemConfig.targetTemp, g_systemConfig.currentTemp, g_systemConfig.systemState);
+        return;
+    }
+    g_systemConfig.pressureDetected = pressureDetected;
     g_systemConfig.liquidLevel = Level_Detect();
     
     // 根据系统状态进行控制
