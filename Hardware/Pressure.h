@@ -14,8 +14,16 @@
 // 校准参数
 #define HX711_THRESHOLD   1000  // 压力检测阈值，需根据实际传感器校准
 
+typedef enum {
+	PRESSURE_READ_PENDING,
+	PRESSURE_READ_READY,
+	PRESSURE_READ_TIMEOUT
+} PressureReadStatus_t;
+
 // 函数声明
 void Pressure_Init(void);
+/* 非阻塞检查HX711：等待期间返回PENDING，完成读取返回READY，超时返回TIMEOUT。 */
+PressureReadStatus_t Pressure_TryDetect(uint8_t *pressureDetected);
 /* 返回1表示读取成功；压力状态通过参数返回。 */
 uint8_t Pressure_Detect(uint8_t *pressureDetected);
 /* 等待超时或TIM2未运行时返回0。 */

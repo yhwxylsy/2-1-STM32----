@@ -27,8 +27,15 @@
 
 // 函数声明
 void TempHeat_Init(void);
+typedef enum {
+	TEMPHEAT_SAMPLE_PENDING,
+	TEMPHEAT_SAMPLE_READY,
+	TEMPHEAT_SAMPLE_ERROR
+} TempHeatSampleStatus_t;
 /* 返回1表示温度有效；成功时通过参数返回摄氏温度。 */
 uint8_t TempHeat_GetCurrentTemp(uint8_t *temperature);
+/* 非阻塞推进一次ADC采样；20个样本跨多个调度周期完成。 */
+TempHeatSampleStatus_t TempHeat_TryGetCurrentTemp(uint8_t *temperature);
 void TempHeat_SetPower(uint8_t power);
 
 #endif
