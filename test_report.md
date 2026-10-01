@@ -1,5 +1,25 @@
 # 项目中断优化测试报告
 
+> 本文前半部分记录早期裸机中断优化，当前工程已迁移到 FreeRTOS。以下当前基线以 `README.md`、`LOCAL_CHANGELOG.md` 和 `Objects/Project.build_log.htm` 为准；由于暂时没有目标板，硬件章节只能列出待验证项目，不能视为已通过。
+
+## 当前软件验证基线
+
+- 工具链：Keil MDK 5.43.1 / ArmClang 6.24 / C99。
+- RTOS：FreeRTOS 11.1.0，Cortex-M3 GCC/ARM_CM3 移植层。
+- 任务：SensorTask、ControlTask、UiTask、SerialTask，以及静态 Idle task。
+- 队列：传感器、显示、控制状态三个静态单元素队列。
+- 最近全量构建：0 errors、0 warnings；Code=26220、RO-data=2396、RW-data=12、ZI=8404。
+- 软件已覆盖：FreeRTOS 启动、任务创建、静态队列、ADC/HX711 非阻塞采样路径、OLED 任务解耦、状态快照、任务栈高水位查询和串口 `s`/`r`/`h` 命令。
+
+## 尚未完成的硬件验证
+
+- 任务实际周期和栈高水位。
+- ADC 温度校准、HX711 阈值和转换周期。
+- 液位传感器极性、PB4 系统使能电平和 PA1 加热输出电平。
+- OLED 实际三位温度显示和软件 I2C 刷新耗时。
+- 传感器故障、串口 `r` 复位和加热输出关断。
+- 真实继电器/SSR、独立热熔断器和过温保护。
+
 ## 1. 优化内容总结
 
 ### 1.1 定时器中断优化

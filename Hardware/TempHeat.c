@@ -2,8 +2,13 @@
 
 #define ADC_CONVERSION_WAIT_LIMIT 100000U /* 循环上限，实际时长需按目标编译配置校准 */
 #define ADC_CALIBRATION_WAIT_LIMIT 100000U /* 校准等待上限，实际时长需按目标编译配置校准 */
+#define ADC_ASYNC_WAIT_LIMIT 10U /* 10 ms轮询一次，单次转换最长等待约100 ms。 */
 
 static uint8_t g_adcReady = 0; /* 校准成功后才允许温度采样。 */
+static uint16_t g_asyncSamples[20];
+static uint8_t g_asyncSampleIndex;
+static uint8_t g_asyncSampling;
+static uint8_t g_asyncWaitCount;
 
 /**
   * @brief  热敏电阻温度传感器和加热控制初始化
@@ -183,6 +188,80 @@ uint8_t TempHeat_GetCurrentTemp(uint8_t *temperature) {
 
     *temperature = (uint8_t)(tempC + 0.5f);
     return 1;
+}
+
+static uint8_t ConvertAdcToTemperature(uint16_t rawAdc, uint8_t *temperature) {
+    uint16_t filteredAdc;
+    float voltage;
+    float resistance;
+    float lnR;
+    float tempK;
+    float tempC;
+
+    if (temperature == 0 || rawAdc == 0U || rawAdc >= 4095U) {
+        return 0;
+    }
+
+    filteredAdc = ApplyMovingAverage(rawAdc);
+    if (filteredAdc == 0U || filteredAdc >= 4095U) {
+        return 0;
+    }
+
+    voltage = (float)filteredAdc / 4095.0f * 3.3f;
+    resistance = THERMISTOR_R_REF * voltage / (3.3f - voltage);
+    lnR = log(resistance / THERMISTOR_R_REF25);
+    tempK = 1.0f / (1.0f / THERMISTOR_T_REF + lnR / THERMISTOR_B_VALUE);
+    tempC = tempK - 273.15f;
+
+    if (!(tempC >= 0.0f && tempC <= 100.0f)) {
+        return 0;
+    }
+
+    *temperature = (uint8_t)(tempC + 0.5f);
+    return 1;
+}
+
+TempHeatSampleStatus_t TempHeat_TryGetCurrentTemp(uint8_t *temperature) {
+    uint16_t medianAdc;
+
+    if (!g_adcReady || temperature == 0) {
+        return TEMPHEAT_SAMPLE_ERROR;
+    }
+
+    if (!g_asyncSampling) {
+        ADC_RegularChannelConfig(THERMISTOR_ADC, THERMISTOR_ADC_CH, 1, ADC_SampleTime_239Cycles5);
+        ADC_ClearFlag(THERMISTOR_ADC, ADC_FLAG_EOC);
+        ADC_SoftwareStartConvCmd(THERMISTOR_ADC, ENABLE);
+        g_asyncSampleIndex = 0;
+        g_asyncWaitCount = 0;
+        g_asyncSampling = 1;
+        return TEMPHEAT_SAMPLE_PENDING;
+    }
+
+    if (ADC_GetFlagStatus(THERMISTOR_ADC, ADC_FLAG_EOC) == RESET) {
+        if (++g_asyncWaitCount >= ADC_ASYNC_WAIT_LIMIT) {
+            g_asyncSampling = 0;
+            g_asyncSampleIndex = 0;
+            return TEMPHEAT_SAMPLE_ERROR;
+        }
+        return TEMPHEAT_SAMPLE_PENDING;
+    }
+
+    g_asyncSamples[g_asyncSampleIndex++] = ADC_GetConversionValue(THERMISTOR_ADC);
+    g_asyncWaitCount = 0;
+    if (g_asyncSampleIndex < 20U) {
+        ADC_SoftwareStartConvCmd(THERMISTOR_ADC, ENABLE);
+        return TEMPHEAT_SAMPLE_PENDING;
+    }
+
+    g_asyncSampling = 0;
+    g_asyncSampleIndex = 0;
+    medianAdc = ApplyMedianFilter(g_asyncSamples, 20U);
+    if (!ConvertAdcToTemperature(medianAdc, temperature)) {
+        return TEMPHEAT_SAMPLE_ERROR;
+    }
+
+    return TEMPHEAT_SAMPLE_READY;
 }
 
 /**

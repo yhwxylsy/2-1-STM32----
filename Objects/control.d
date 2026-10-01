@@ -11,5 +11,4 @@
   Library\stm32f10x_rtc.h Library\stm32f10x_sdio.h \
   Library\stm32f10x_spi.h Library\stm32f10x_tim.h \
   Library\stm32f10x_usart.h Library\stm32f10x_wwdg.h Library\misc.h \
-  Hardware\TempHeat.h Hardware\Pressure.h Hardware\Level.h \
-  Hardware\Display.h Hardware\OLED.h Hardware\EL.h Hardware\Serial.h
+  Hardware\TempHeat.h Hardware\EL.h Hardware\Serial.h

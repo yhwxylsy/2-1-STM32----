@@ -1,14 +1,12 @@
 #include "Control.h"
 #include "TempHeat.h"
-#include "Pressure.h"
-#include "Level.h"
-#include "Display.h"
 #include "EL.h"
 #include "Serial.h"
 
 // 系统配置全局变量
 static SystemConfig_t g_systemConfig;
 static SystemFault_t g_systemFault;
+static volatile uint8_t g_resetRequested;
 
 /**
   * @brief  主控模块初始化
@@ -23,6 +21,7 @@ void Control_Init(void) {
     g_systemConfig.liquidLevel = 0;
     g_systemConfig.systemState = SYSTEM_OFF;
     g_systemFault = SYSTEM_FAULT_NONE;
+    g_resetRequested = 0;
 }
 
 /**
@@ -30,34 +29,41 @@ void Control_Init(void) {
   * @param  无
   * @retval 无
   */
-void Control_Update(void) {
-    uint8_t pressureDetected;
-    uint8_t currentTemp;
+void Control_UpdateFromSensors(const ControlSensorData_t *sensorData) {
+    if (sensorData == 0) {
+        return;
+    }
 
-    // 读取传感器数据
-    if (!TempHeat_GetCurrentTemp(&currentTemp)) {
+    if (g_resetRequested) {
+        g_resetRequested = 0;
+        g_systemConfig.systemState = SYSTEM_OFF;
+        g_systemFault = SYSTEM_FAULT_NONE;
+        TempHeat_SetPower(0);
+        EL_Disable();
+        return;
+    }
+
+    if (!sensorData->temperatureValid) {
         /* 温度数据无效时锁定错误状态并立即撤销加热。 */
         g_systemConfig.systemState = SYSTEM_ERROR;
         g_systemFault = SYSTEM_FAULT_TEMPERATURE;
         TempHeat_SetPower(0);
         EL_Disable();
-        Display_Update(g_systemConfig.targetTemp, g_systemConfig.currentTemp, g_systemConfig.systemState);
         return;
     }
-    g_systemConfig.currentTemp = currentTemp;
+    g_systemConfig.currentTemp = sensorData->currentTemp;
 
-    if (!Pressure_Detect(&pressureDetected)) {
+    if (!sensorData->pressureValid) {
         /* 压力传感器读取失败不能等同于正常的无压力读数。 */
         g_systemConfig.pressureDetected = 0;
         g_systemConfig.systemState = SYSTEM_ERROR;
         g_systemFault = SYSTEM_FAULT_PRESSURE;
         TempHeat_SetPower(0);
         EL_Disable();
-        Display_Update(g_systemConfig.targetTemp, g_systemConfig.currentTemp, g_systemConfig.systemState);
         return;
     }
-    g_systemConfig.pressureDetected = pressureDetected;
-    g_systemConfig.liquidLevel = Level_Detect();
+    g_systemConfig.pressureDetected = sensorData->pressureDetected;
+    g_systemConfig.liquidLevel = sensorData->liquidLevel;
     
     // 根据系统状态进行控制
     switch (g_systemConfig.systemState) {
@@ -142,8 +148,23 @@ void Control_Update(void) {
             break;
     }
     
-    // 更新显示
-    Display_Update(g_systemConfig.targetTemp, g_systemConfig.currentTemp, g_systemConfig.systemState);
+}
+
+void Control_GetDisplaySnapshot(SystemConfig_t *displayData) {
+    if (displayData != 0) {
+        *displayData = g_systemConfig;
+    }
+}
+
+void Control_GetStatusSnapshot(ControlStatusSnapshot_t *statusData) {
+    if (statusData != 0) {
+        statusData->config = g_systemConfig;
+        statusData->fault = g_systemFault;
+    }
+}
+
+void Control_RequestReset(void) {
+    g_resetRequested = 1;
 }
 
 /**
@@ -173,6 +194,14 @@ uint8_t Control_GetTargetTemp(void) {
   */
 uint8_t Control_GetCurrentTemp(void) {
     return g_systemConfig.currentTemp;
+}
+
+uint8_t Control_GetPressureDetected(void) {
+    return g_systemConfig.pressureDetected;
+}
+
+uint8_t Control_GetLiquidLevel(void) {
+    return g_systemConfig.liquidLevel;
 }
 
 /**

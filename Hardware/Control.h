@@ -29,12 +29,31 @@ typedef struct {
     SystemState_t systemState; // 系统状态
 } SystemConfig_t;
 
+typedef struct {
+    uint8_t temperatureValid;
+    uint8_t currentTemp;
+    uint8_t pressureValid;
+    uint8_t pressureDetected;
+    uint8_t liquidLevel;
+    uint8_t ready;
+} ControlSensorData_t;
+
+typedef struct {
+    SystemConfig_t config;
+    SystemFault_t fault;
+} ControlStatusSnapshot_t;
+
 // 函数声明
 void Control_Init(void);
-void Control_Update(void);
+void Control_UpdateFromSensors(const ControlSensorData_t *sensorData);
+void Control_RequestReset(void);
+void Control_GetDisplaySnapshot(SystemConfig_t *displayData);
+void Control_GetStatusSnapshot(ControlStatusSnapshot_t *statusData);
 void Control_SetTargetTemp(uint8_t temp);
 uint8_t Control_GetTargetTemp(void);
 uint8_t Control_GetCurrentTemp(void);
+uint8_t Control_GetPressureDetected(void);
+uint8_t Control_GetLiquidLevel(void);
 SystemState_t Control_GetSystemState(void);
 /* 查询当前故障；离开错误状态后恢复为SYSTEM_FAULT_NONE。 */
 SystemFault_t Control_GetSystemFault(void);

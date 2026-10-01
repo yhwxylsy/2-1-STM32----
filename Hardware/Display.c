@@ -18,8 +18,8 @@ void Display_Init(void) {
     OLED_Init();
     OLED_Clear();
     OLED_ShowString(1, 1, "Water Heater");
-    OLED_ShowString(2, 1, "Target: --C");
-    OLED_ShowString(3, 1, "Current: --C");
+    OLED_ShowString(2, 1, "Target: ---C");
+    OLED_ShowString(3, 1, "Current: ---C");
     OLED_ShowString(4, 1, "Status: OFF");
     
     // 初始化按键
@@ -41,10 +41,10 @@ void Display_Init(void) {
   */
 void Display_Update(uint8_t targetTemp, uint8_t currentTemp, SystemState_t state) {
     // 显示目标温度
-    OLED_ShowNum(2, 9, targetTemp, 2);
+    OLED_ShowNum(2, 9, targetTemp, 3);
     
     // 显示当前温度
-    OLED_ShowNum(3, 10, currentTemp, 2);
+    OLED_ShowNum(3, 10, currentTemp, 3);
     
     // 显示系统状态
     OLED_SetCursor(4, 8);

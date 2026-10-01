@@ -1,6 +1,11 @@
 #ifndef __OLED_FONT_H
 #define __OLED_FONT_H
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-braces"
+#endif
+
 /*OLED字模库，宽8像素，高16像素*/
 const uint8_t OLED_F8x16[][16]=
 {
@@ -289,5 +294,9 @@ const uint8_t OLED_F8x16[][16]=
 	0x00,0x06,0x01,0x01,0x02,0x02,0x04,0x04,
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,//~ 94
 };
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 #endif

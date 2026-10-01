@@ -12,4 +12,10 @@
   Library\stm32f10x_tim.h Library\stm32f10x_usart.h \
   Library\stm32f10x_wwdg.h Library\misc.h Hardware\Control.h \
   Hardware\TempHeat.h Hardware\Pressure.h Hardware\Level.h \
-  Hardware\Display.h Hardware\OLED.h Hardware\EL.h Hardware\Serial.h
+  Hardware\Display.h Hardware\OLED.h Hardware\EL.h Hardware\Serial.h \
+  FreeRTOS\include\FreeRTOS.h User\FreeRTOSConfig.h \
+  FreeRTOS\include\projdefs.h FreeRTOS\include\portable.h \
+  FreeRTOS\include\deprecated_definitions.h \
+  FreeRTOS\portable\GCC\ARM_CM3\portmacro.h \
+  FreeRTOS\include\mpu_wrappers.h FreeRTOS\include\task.h \
+  FreeRTOS\include\list.h User\app_tasks.h
